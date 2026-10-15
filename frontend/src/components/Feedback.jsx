@@ -22,6 +22,7 @@ export default function Feedback({ onError }) {
   const courseCode = id => courses.find(c => c.id === id)?.code || `Course #${id}`
 
   const submit = async () => {
+    if (!form.student_id || !form.course_id) return onError(new Error('Choose a student and a course first'))
     try {
       const saved = await api('/feedback', { method: 'POST', body: form })
       setResult(saved.notification_sent

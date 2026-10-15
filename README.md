@@ -100,7 +100,7 @@ One downside is that if a student or course gets deleted later, their old feedba
 
 | Call | Sync or async | Why | What happens if it fails |
 |---|---|---|---|
-| Client to any service (through the gateway) | sync | the user is waiting for the answer | nginx returns 502 |
+| Client to any service (through the gateway) | sync | the user is waiting for the answer | nginx gives up after 3 seconds and returns an error (502 or 504), which the dashboard shows |
 | feedback to student-profile and course-catalogue | sync | feedback can't be saved until we know the student and course exist, and we need the email and course name for the message | 3 second timeout, then a 503 "A dependent service is unavailable". Nothing gets saved, so it's safe to try again |
 | feedback to notification | async (outbox + retry) | the student doesn't need to wait for the email, and a failed email shouldn't throw away their feedback | feedback is still saved and the response has `notification_sent: false`. The email is retried every 15 seconds |
 
@@ -110,7 +110,7 @@ I went with plain HTTP instead of something like RabbitMQ. It covers what this s
 
 The lecturer's questions were a good checklist, so here's how each one is handled:
 
-- If a service is down: every call between services has a 3 second timeout, so nothing hangs forever. The caller gets a 503 with a JSON error message.
+- If a service is down: every call between services has a 3 second timeout, and so does the gateway, so nothing hangs forever. The caller gets a JSON error (503 from feedback, 502/504 from the gateway).
 - If the same request comes in twice (double click, client retry): a student can only leave one feedback per course, enforced by `UNIQUE (student_id, course_id)` in the database. The second request gets a 409 ("... has already submitted feedback for INFS605"). Course codes are unique too.
 - If the notification fails, the feedback still goes through. The feedback row and its email are written to the database in the same transaction (the `notification_outbox` table), so even if the feedback service crashed straight after saving, the email wouldn't be lost.
 - When the notification service comes back, a background thread in feedback checks for unsent emails every 15 seconds and sends them. In the UI each feedback shows "email sent" or "email queued, will retry". Screenshot 10 shows this happening.
@@ -334,6 +334,8 @@ Microservice/
 3. The starter frontend called `http://localhost:5001` directly even though it had a proxy set up. I changed it to use `/api` so the browser only talks to one address and everything goes through the gateway.
 4. On a fresh start, Postgres takes a few seconds before it accepts connections, and plain `depends_on` doesn't wait for that. I added `pg_isready` health checks and `condition: service_healthy` so the services wait for their database.
 5. The starter's `.gitignore` had `.env/` and `.env.*`, which would have committed the real `.env` but ignored `.env.example`. I changed it to `.env` and `!.env.example`.
+6. While testing with a service stopped, requests through the gateway hung for a full minute before failing. That's nginx's default connect timeout (60 seconds). I set `proxy_connect_timeout 3s` so it fails fast like the services do.
+7. Typing an empty or negative number of credits gave a 500 "Database error", because the database check constraint caught it before my code did. I added proper validation so it returns a 400 with a clear message.
 
 ## Credits
 

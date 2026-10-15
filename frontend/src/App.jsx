@@ -13,7 +13,8 @@ export default function App() {
   const Page = TABS[tab]
 
   return (
-    <div className="container">
+    // Clicking any button starts a new action, so clear the old error message first
+    <div className="container" onClickCapture={e => e.target.tagName === 'BUTTON' && setError('')}>
       <h1>Student Services Dashboard</h1>
       <p>Osborne.AI prototype. Each tab talks to its own microservice through the API gateway.</p>
 

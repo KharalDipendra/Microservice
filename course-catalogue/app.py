@@ -74,13 +74,20 @@ def add_course():
     if missing:
         return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
     try:
+        credits = int(data.get("credits", 15))
+    except (TypeError, ValueError):
+        credits = 0
+    if credits <= 0:
+        return jsonify({"error": "credits must be a positive whole number"}), 400
+    code = data["code"].strip().upper()
+    try:
         course = query(
             f"INSERT INTO courses (code, title, credits, semester, lecturer) VALUES (%s, %s, %s, %s, %s) RETURNING {COLUMNS}",
-            (data["code"].upper(), data["title"], data.get("credits", 15), data.get("semester"), data.get("lecturer")),
+            (code, data["title"], credits, data.get("semester"), data.get("lecturer")),
             one=True,
         )
     except psycopg2.errors.UniqueViolation:
-        return jsonify({"error": f"Course {data['code']} already exists"}), 409
+        return jsonify({"error": f"Course {code} already exists"}), 409
     log.info("Created course %s", course["code"])
     return jsonify(course), 201
 
