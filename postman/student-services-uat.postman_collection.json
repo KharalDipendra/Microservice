@@ -1,0 +1,468 @@
+{
+  "info": {
+    "name": "Student Services Dashboard - UAT",
+    "description": "User Acceptance Tests for the Osborne.AI Student Services Dashboard. Run the whole collection in order (Runner) against the API gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gatewayUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api"
+    },
+    {
+      "key": "studentId",
+      "value": ""
+    },
+    {
+      "key": "studentEmail",
+      "value": ""
+    },
+    {
+      "key": "courseId",
+      "value": ""
+    },
+    {
+      "key": "courseCode",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "UAT-01 Gateway is up",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Gateway reports ok\", () => pm.expect(pm.response.json().status).to.eql(\"ok\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{gatewayUrl}}/health"
+      }
+    },
+    {
+      "name": "UAT-02 Admin can list students",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Returns a non-empty list\", () => pm.expect(pm.response.json()).to.be.an(\"array\").that.is.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/students"
+      }
+    },
+    {
+      "name": "UAT-03 Admin can add a student",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+              "const s = pm.response.json();",
+              "pm.test(\"Student has an id\", () => pm.expect(s.id).to.be.a(\"number\"));",
+              "pm.collectionVariables.set(\"studentId\", s.id);",
+              "pm.collectionVariables.set(\"studentEmail\", s.email);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/students",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"UAT Tester\",\n  \"email\": \"uat.tester@example.com\"\n}"
+        }
+      }
+    },
+    {
+      "name": "UAT-04 Adding a student without email is rejected",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/students",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"No Email\"\n}"
+        }
+      }
+    },
+    {
+      "name": "UAT-05 Student can browse the course catalogue",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"INFS605 is in the catalogue\", () => pm.expect(pm.response.json().map(c => c.code)).to.include(\"INFS605\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/courses"
+      }
+    },
+    {
+      "name": "UAT-06 Admin can add a course",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+              "const c = pm.response.json();",
+              "pm.test(\"Code is stored in upper case\", () => pm.expect(c.code).to.eql(pm.collectionVariables.get(\"courseCode\").toUpperCase()));",
+              "pm.collectionVariables.set(\"courseId\", c.id);"
+            ]
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"courseCode\", \"uat\" + Date.now().toString().slice(-6));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/courses",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{courseCode}}\",\n  \"title\": \"UAT Test Course\",\n  \"credits\": 15,\n  \"semester\": \"S2 2026\",\n  \"lecturer\": \"Dr Test\"\n}"
+        }
+      }
+    },
+    {
+      "name": "UAT-07 Duplicate course code is rejected",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/courses",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{courseCode}}\",\n  \"title\": \"Duplicate\"\n}"
+        }
+      }
+    },
+    {
+      "name": "UAT-08 Student can submit feedback on a course",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+              "const f = pm.response.json();",
+              "pm.test(\"Feedback saved with rating 4\", () => pm.expect(f.rating).to.eql(4));",
+              "pm.test(\"Confirmation notification was sent\", () => pm.expect(f.notification_sent).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"{{studentId}}\",\n  \"course_id\": \"{{courseId}}\",\n  \"rating\": 4,\n  \"comment\": \"Clear lectures, great labs\"\n}"
+        }
+      }
+    },
+    {
+      "name": "UAT-09 Submitting the same feedback twice is rejected (no duplicates)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Explains the duplicate\", () => pm.expect(pm.response.json().error).to.include(\"already submitted\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"{{studentId}}\",\n  \"course_id\": \"{{courseId}}\",\n  \"rating\": 4,\n  \"comment\": \"Clear lectures, great labs\"\n}"
+        }
+      }
+    },
+    {
+      "name": "UAT-10 Student receives a confirmation email (notification)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const n = pm.response.json()[0];",
+              "pm.test(\"Email addressed to the student\", () => pm.expect(n.to).to.eql(pm.collectionVariables.get(\"studentEmail\")));",
+              "pm.test(\"Subject mentions the course\", () => pm.expect(n.subject).to.include(pm.collectionVariables.get(\"courseCode\").toUpperCase()));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/notifications?to={{studentEmail}}"
+      }
+    },
+    {
+      "name": "UAT-11 Feedback for an unknown student is rejected",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": 999999,\n  \"course_id\": \"{{courseId}}\",\n  \"rating\": 5\n}"
+        }
+      }
+    },
+    {
+      "name": "UAT-12 Feedback for an unknown course is rejected",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"{{studentId}}\",\n  \"course_id\": 999999,\n  \"rating\": 5\n}"
+        }
+      }
+    },
+    {
+      "name": "UAT-13 Rating outside 1-5 is rejected",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"{{studentId}}\",\n  \"course_id\": \"{{courseId}}\",\n  \"rating\": 9\n}"
+        }
+      }
+    },
+    {
+      "name": "UAT-14 Lecturer can view feedback for their course",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Exactly one feedback entry\", () => pm.expect(pm.response.json()).to.have.lengthOf(1));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/feedback?course_id={{courseId}}"
+      }
+    },
+    {
+      "name": "UAT-15 Course rating summary is calculated",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const row = pm.response.json().find(r => r.course_id == pm.collectionVariables.get(\"courseId\"));",
+              "pm.test(\"Average rating is 4\", () => pm.expect(row.average_rating).to.eql(4));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/feedback/summary"
+      }
+    },
+    {
+      "name": "UAT-16 Clean up: delete test course",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/courses/{{courseId}}"
+      }
+    },
+    {
+      "name": "UAT-17 Clean up: delete test student",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/students/{{studentId}}"
+      }
+    }
+  ]
+}

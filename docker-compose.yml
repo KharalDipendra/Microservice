@@ -1,0 +1,133 @@
+# Student Services Dashboard - Osborne.AI
+# Each service owns its data: one Postgres container per service (database-per-service).
+# Only the gateway (8080) and frontend (3000) need to be public; the service ports are
+# also published so each API can be tested on its own with Postman/curl.
+
+name: student-services   # fixed project name, independent of the folder name
+
+x-db-healthcheck: &db-healthcheck
+  test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+  interval: 3s
+  timeout: 3s
+  retries: 20
+
+services:
+  # ---------- databases ----------
+  student-db:
+    image: postgres:15
+    container_name: student-db
+    environment:
+      POSTGRES_USER: ${STUDENT_DB_USER:-student}
+      POSTGRES_PASSWORD: ${STUDENT_DB_PASSWORD:-password}
+      POSTGRES_DB: students
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - student-data:/var/lib/postgresql/data
+    healthcheck: *db-healthcheck
+    networks: [microservices-net]
+
+  course-db:
+    image: postgres:15
+    container_name: course-db
+    environment:
+      POSTGRES_USER: ${COURSE_DB_USER:-course}
+      POSTGRES_PASSWORD: ${COURSE_DB_PASSWORD:-password}
+      POSTGRES_DB: courses
+    volumes:
+      - ./course-catalogue/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - course-data:/var/lib/postgresql/data
+    healthcheck: *db-healthcheck
+    networks: [microservices-net]
+
+  feedback-db:
+    image: postgres:15
+    container_name: feedback-db
+    environment:
+      POSTGRES_USER: ${FEEDBACK_DB_USER:-feedback}
+      POSTGRES_PASSWORD: ${FEEDBACK_DB_PASSWORD:-password}
+      POSTGRES_DB: feedback
+    volumes:
+      - ./feedback/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - feedback-data:/var/lib/postgresql/data
+    healthcheck: *db-healthcheck
+    networks: [microservices-net]
+
+  # ---------- microservices ----------
+  student-profile:
+    build: ./student-profile
+    container_name: student-profile
+    environment:
+      DATABASE_URL: postgresql://${STUDENT_DB_USER:-student}:${STUDENT_DB_PASSWORD:-password}@student-db:5432/students
+    depends_on:
+      student-db: { condition: service_healthy }
+    ports: ["5001:5001"]
+    restart: unless-stopped
+    networks: [microservices-net]
+
+  course-catalogue:
+    build: ./course-catalogue
+    container_name: course-catalogue
+    environment:
+      DATABASE_URL: postgresql://${COURSE_DB_USER:-course}:${COURSE_DB_PASSWORD:-password}@course-db:5432/courses
+    depends_on:
+      course-db: { condition: service_healthy }
+    ports: ["5002:5002"]
+    restart: unless-stopped
+    networks: [microservices-net]
+
+  feedback:
+    build: ./feedback
+    container_name: feedback
+    environment:
+      DATABASE_URL: postgresql://${FEEDBACK_DB_USER:-feedback}:${FEEDBACK_DB_PASSWORD:-password}@feedback-db:5432/feedback
+      STUDENT_SERVICE_URL: http://student-profile:5001
+      COURSE_SERVICE_URL: http://course-catalogue:5002
+      NOTIFICATION_SERVICE_URL: http://notification:5004
+    depends_on:
+      feedback-db: { condition: service_healthy }
+      student-profile: { condition: service_started }
+      course-catalogue: { condition: service_started }
+      notification: { condition: service_started }
+    ports: ["5003:5003"]
+    restart: unless-stopped
+    networks: [microservices-net]
+
+  notification:
+    build: ./notification
+    container_name: notification
+    ports: ["5004:5004"]
+    restart: unless-stopped
+    networks: [microservices-net]
+
+  # ---------- edge ----------
+  gateway:
+    image: nginx:1.27-alpine
+    container_name: gateway
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [student-profile, course-catalogue, feedback, notification]
+    ports: ["8080:80"]
+    restart: unless-stopped
+    networks: [microservices-net]
+
+  admin-frontend:
+    build: ./frontend
+    container_name: frontend
+    ports: ["3000:3000"]
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+    depends_on: [gateway]
+    networks: [microservices-net]
+
+volumes:
+  student-data:
+  course-data:
+  feedback-data:
+
+networks:
+  microservices-net:
+    name: microservices-net   # fixed name, so it doesn't depend on the folder name
+    driver: bridge

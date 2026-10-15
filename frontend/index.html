@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!--
+  The DOCTYPE declaration tells the browser this document is HTML5.
+  Without this line, browsers can switch into an older "quirks mode"
+  and interpret HTML/CSS incorrectly.
+-->
+<html lang="en">
+  <head>
+    <!--
+      The <head> section contains meta information *about* the page —
+      not the content the user sees.
+      React/Vite injects compiled scripts and metadata here when the app builds.
+    -->
+    <meta charset="UTF-8" />
+    <!--
+      The charset defines how characters are encoded — UTF-8 supports
+      almost all world languages (including Māori, Chinese, etc.)
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      The viewport tag ensures the layout adapts correctly on mobile devices.
+      It sets the page width to match the device width and initial zoom to 1.
+    -->
+    <title>Student Services Dashboard</title>
+    <!--
+      The title appears in the browser tab or window title bar.
+      When this app runs inside Docker, students will see
+      "Student Admin Portal" when visiting http://localhost:3000
+    -->
+  </head>
+
+  <body>
+    <!--
+      The <body> contains the actual visible page content.
+      Here we only have an empty <div id="root"> — this is intentional.
+      React takes over this root div tag at runtime. The "root" div acts as
+      a placeholder or mounting point where the React component tree
+      is dynamically rendered by JavaScript.
+    -->
+    <div id="root"></div>
+
+    <!--
+      This script loads the entry point for the React/Vite application.
+      - "type='module'" tells the browser to use modern ES Modules syntax.
+      - "/src/main.jsx" is the file where ReactDOM.render() (or createRoot)
+        attaches the React app to the <div id="root"> above.
+      When the Vite dev server runs, it automatically serves this file
+      and handles live reloading as you save changes.
+    -->
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
