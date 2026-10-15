@@ -114,7 +114,7 @@ The lecturer's questions were a good checklist, so here's how each one is handle
 - If the same request comes in twice (double click, client retry): a student can only leave one feedback per course, enforced by `UNIQUE (student_id, course_id)` in the database. The second request gets a 409 ("... has already submitted feedback for INFS605"). Course codes are unique too.
 - If the notification fails, the feedback still goes through. The feedback row and its email are written to the database in the same transaction (the `notification_outbox` table), so even if the feedback service crashed straight after saving, the email wouldn't be lost.
 - When the notification service comes back, a background thread in feedback checks for unsent emails every 15 seconds and sends them. In the UI each feedback shows "email sent" or "email queued, will retry". Screenshot 10 shows this happening.
-- If the database is slow to start, each service waits for its own database health check before starting, and the containers restart automatically if they crash.
+- If the database is slow to start, each service waits for its own database health check before starting, and the four services and the gateway restart automatically if they crash.
 
 There are some limits I know about:
 
@@ -274,6 +274,7 @@ Microservice/
 ├── .env.example                 # DB passwords template, copy to .env
 ├── .gitattributes               # keeps *.sh files with LF line endings
 ├── .gitignore
+├── LICENSE                      # MIT licence from the starter files
 ├── docker-compose.yml           # 9 containers: 3 databases, 4 services, gateway, frontend
 ├── README.md
 ├── course-catalogue/            # new
@@ -300,7 +301,9 @@ Microservice/
 ├── postgres/
 │   └── init.sql                 # students table + sample students
 ├── frontend/                    # React dashboard, extended from the starter
+│   ├── index.html
 │   ├── src/
+│   │   ├── main.jsx             # React entry point (starter)
 │   │   ├── App.jsx              # tabs + error message
 │   │   ├── api.js               # small fetch helper, everything goes through /api
 │   │   └── components/          # Students, Courses, Feedback, Notifications
